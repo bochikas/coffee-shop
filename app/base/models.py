@@ -1,5 +1,4 @@
 import logging
-import re
 
 from django.db import models
 from django.utils.functional import classproperty
@@ -25,14 +24,6 @@ class BaseModel(models.Model):
     def model_name(cls):  # noqa
         return cls._meta.model_name  # noqa
 
-    @classproperty
-    def verbose_name(cls):  # noqa
-        return cls._meta.verbose_name  # noqa
-
-    @classproperty
-    def verbose_name_plural(cls):  # noqa
-        return re.sub(r"^\d+\. ", "", cls._meta.verbose_name_plural)  # noqa
-
     @classmethod
     def get_field(cls, field_name):
         return cls._meta.get_field(field_name)
@@ -46,6 +37,7 @@ class ActiveManager(models.Manager):
 class IsActiveModel(BaseModel):
     is_active = models.BooleanField(default=True, verbose_name="Активно?")
 
+    objects = models.Manager()
     active_objects = ActiveManager()
 
     class Meta:
@@ -53,7 +45,7 @@ class IsActiveModel(BaseModel):
 
 
 class CreatedAtModel(BaseModel):
-    created_at = models.DateTimeField("Создано", auto_now_add=True, blank=True)
+    created_at = models.DateTimeField(verbose_name="Создано", auto_now_add=True, blank=True)
 
     class Meta:
         abstract = True
@@ -78,6 +70,6 @@ class TimeStampedModel(CreatedAtModel, UpdatedAtModel):
         abstract = True
 
 
-class IsActiveTimeStampedModel(TimeStampedModel, IsActiveModel):
+class IsActiveTitleTimeStampedModel(IsActiveModel, CreatedAtModel, UpdatedAtModel, TitleModel):
     class Meta:
         abstract = True

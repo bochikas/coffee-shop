@@ -1,4 +1,5 @@
-from os import getenv
+from datetime import timedelta
+from os import getenv, path
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -11,6 +12,7 @@ SECRET_KEY = getenv("SECRET_KEY")
 DEBUG = getenv("DEBUG") == "True"
 ALLOWED_HOSTS = getenv("ALLOWED_HOSTS", "").split(" ")
 INTERNAL_IPS = getenv("INTERNAL_IPS", "").split(" ")
+AUTH_USER_MODEL = "users.User"
 
 
 # Application definition
@@ -21,7 +23,19 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # 3rd party
+    "rest_framework",
+    "rest_framework_simplejwt",
+    "rest_framework.authtoken",
+    "dj_rest_auth",
+    "drf_spectacular",
+    # app
+    "users.apps.UsersConfig",
+    "shop.apps.ShopConfig",
 ]
+
+if DEBUG:
+    INSTALLED_APPS += ["debug_toolbar"]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -32,6 +46,9 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+if DEBUG:
+    MIDDLEWARE = ["debug_toolbar.middleware.DebugToolbarMiddleware"] + MIDDLEWARE
 
 ROOT_URLCONF = "config.urls"
 
@@ -67,7 +84,6 @@ DATABASES = {
 }
 
 
-
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -100,3 +116,74 @@ STATIC_URL = "static/"
 
 # Default primary key field type
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# REST
+REST_FRAMEWORK = {
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 20,
+    "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
+    "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+    "DEFAULT_PARSER_CLASSES": ("rest_framework.parsers.JSONParser",),
+    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    "DEFAULT_AUTHENTICATION_CLASSES": ("rest_framework_simplejwt.authentication.JWTAuthentication",),
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=3),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+}
+
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": False,
+    "LOGIN_SERIALIZER": "api.v1.serializers.NoEmailLoginSerializer",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Coffee Shop API",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SECURITY": [{"bearerAuth": []}],
+    "AUTHENTICATION_WHITELIST": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+}
+
+# LOGGING
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "[%(asctime)s] %(levelname)7s %(module)20s:%(lineno)4d - %(message)s",
+            "datefmt": "%d-%m-%Y %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "file": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": path.join(BASE_DIR, "info.log"),
+            "formatter": "verbose",
+            "maxBytes": 1048576,
+            "backupCount": 3,
+        },
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console", "file"],
+            "level": "DEBUG",
+        },
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
+}
