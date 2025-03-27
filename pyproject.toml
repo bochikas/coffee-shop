@@ -43,7 +43,7 @@ exclude = """
 [tool.isort]
 profile = "wemake"
 default_section = "THIRDPARTY"
-known_first_party = ["config"]
+known_first_party = ["config", "users", "base", "api", "shop"]
 skip_glob = ["**/__pycache__", ".venv", "flake-report", "venv", "**/migrations", "**/tests"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "LOCALFOLDER"]
 line_length = 120
