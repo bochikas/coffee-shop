@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
 from rest_framework import filters, generics, permissions, status, viewsets
@@ -76,7 +77,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 class ProductViewSet(viewsets.ModelViewSet):
     """Продукты."""
 
-    queryset = models.Product.objects.all()
+    queryset = models.Product.objects.select_related("category").all()
     serializer_class = serializers.ProductSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -91,7 +92,7 @@ class CartView(APIView):
 
     @extend_schema(responses=serializers.CartSerializer)
     def get(self, request):
-        cart = models.Cart.objects.get(user=request.user)
+        cart = models.Cart.objects.select_related("user").prefetch_related("cartitem_set").get(user=request.user)
         serializer = serializers.CartSerializer(cart)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -113,7 +114,7 @@ class CartView(APIView):
     def delete(self, request, item_id=None):
         cart = models.Cart.objects.get(user=request.user)
         if item_id:
-            cart_item = models.CartItem.objects.get(cart=cart, id=item_id)
+            cart_item = get_object_or_404(models.CartItem, cart=cart, id=item_id)
             cart_item.delete()
             return Response(status=status.HTTP_204_NO_CONTENT)
         else:
@@ -135,7 +136,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
     def create(self, request, *args, **kwargs):
         cart = models.Cart.objects.filter(user=self.request.user).first()
-        cart_items = models.CartItem.objects.filter(cart=cart)
+        cart_items = models.CartItem.objects.filter(cart=cart).select_related("product")
         if not cart or not cart_items:
             return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
 
