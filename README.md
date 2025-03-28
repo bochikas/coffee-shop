@@ -18,6 +18,8 @@
 - Docker
 - Poetry
 - pre-commit
+- Daphne
+- django-channels
 
 ## Запуск проекта
 ### 1. Клонирование репозитория
