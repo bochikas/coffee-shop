@@ -1,6 +1,7 @@
 from django.contrib.auth import get_user_model
+from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.utils import extend_schema
-from rest_framework import generics, permissions, status, viewsets
+from rest_framework import filters, generics, permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -68,6 +69,9 @@ class CategoryViewSet(viewsets.ModelViewSet):
     serializer_class = serializers.CategorySerializer
     permission_classes = [permissions.AllowAny]
 
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["title"]
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     """Продукты."""
@@ -75,6 +79,9 @@ class ProductViewSet(viewsets.ModelViewSet):
     queryset = models.Product.objects.all()
     serializer_class = serializers.ProductSerializer
     permission_classes = [permissions.AllowAny]
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["title"]
 
 
 class CartView(APIView):
@@ -120,6 +127,11 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = models.Order.objects.all()
     serializer_class = serializers.OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filterset_fields = ["user", "total_price", "created_at"]
+    search_fields = ["user__username"]
+    ordering_fields = ["total_price", "created_at"]
 
     def create(self, request, *args, **kwargs):
         cart = models.Cart.objects.filter(user=self.request.user).first()

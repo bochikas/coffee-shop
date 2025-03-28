@@ -12,6 +12,7 @@ class Category(IsActiveTitleTimeStampedModel):
     class Meta:
         verbose_name = "категория"
         verbose_name_plural = "категории"
+        ordering = ("title",)
 
     def __str__(self):
         return self.title
@@ -27,6 +28,7 @@ class Product(IsActiveTitleTimeStampedModel):
     class Meta:
         verbose_name = "товар"
         verbose_name_plural = "товары"
+        ordering = ("title",)
 
     def __str__(self):
         return self.title
@@ -75,6 +77,7 @@ class Order(CreatedAtModel):
     class Meta:
         verbose_name = "заказ"
         verbose_name_plural = "заказы"
+        ordering = ("created_at",)
 
     def __str__(self):
         return f"Order {self.id} - {self.status}"
