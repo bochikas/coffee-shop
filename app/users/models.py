@@ -1,13 +1,25 @@
+from datetime import timedelta
+
 from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import UserManager as BaseUserManager
 from django.db import models
+from django.utils import timezone
 
 from base.models import UpdatedAtModel
+
+
+class UserManager(BaseUserManager):
+    def delete_unverified_users(self):
+        print("deleting unverified users")
+        self.filter(is_verified=False, date_joined__lte=timezone.now() - timedelta(days=2)).update(is_active=False)
 
 
 class User(AbstractUser, UpdatedAtModel):
     """Пользователь."""
 
     is_verified = models.BooleanField(default=False, verbose_name="Верифицированный?")
+
+    objects = UserManager()
 
     REQUIRED_FIELDS = []
 
