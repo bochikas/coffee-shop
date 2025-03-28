@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from django.contrib.auth import get_user_model
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import DjangoFilterBackend
@@ -10,80 +12,13 @@ from rest_framework_simplejwt.views import TokenRefreshView
 from api.v1 import serializers
 from api.v1.permissions import IsAdminOrReadOnly
 from shop import models
+from shop.tasks import send_order_notification
 
 User = get_user_model()
 
 
 class CheckUserActiveTokenRefreshView(TokenRefreshView):
     serializer_class = serializers.CheckUserActiveTokenRefreshSerializer
-
-
-class UserRegistrationView(generics.CreateAPIView):
-    """Регистрация пользователя."""
-
-    queryset = User.objects.all()
-    serializer_class = serializers.UserCreateSerializer
-    permission_classes = [permissions.AllowAny]
-
-
-class UserVerificationView(generics.GenericAPIView):
-    """Верификация пользователя."""
-
-    permission_classes = [permissions.IsAdminUser]
-    serializer_class = serializers.UserVerificationSerializer
-
-    def post(self, request):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        username = serializer.data.get("username")
-
-        if user := User.objects.filter(username=username).first():
-            user.is_verified = True
-            user.save()
-            return Response(status=status.HTTP_200_OK)
-        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
-
-
-class UserInfoView(generics.RetrieveAPIView):
-    """Информация о пользователе."""
-
-    queryset = User.objects.all()
-    serializer_class = serializers.UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
-    def get_object(self):
-        return self.request.user
-
-
-class UserViewSet(viewsets.ModelViewSet):
-    """Пользователи."""
-
-    http_method_names = ["get", "put", "patch", "delete"]
-    queryset = User.objects.all()
-    serializer_class = serializers.UserSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-
-class CategoryViewSet(viewsets.ModelViewSet):
-    """Категории."""
-
-    queryset = models.Category.objects.all()
-    serializer_class = serializers.CategorySerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["title"]
-
-
-class ProductViewSet(viewsets.ModelViewSet):
-    """Продукты."""
-
-    queryset = models.Product.objects.select_related("category").all()
-    serializer_class = serializers.ProductSerializer
-    permission_classes = [IsAdminOrReadOnly]
-
-    filter_backends = [DjangoFilterBackend]
-    filterset_fields = ["title"]
 
 
 class CartView(APIView):
@@ -112,7 +47,7 @@ class CartView(APIView):
         cart_item.save()
         return Response(serializers.CartSerializer(cart).data, status=status.HTTP_200_OK)
 
-    def delete(self, request, item_id=None):
+    def delete(self, request, item_id: UUID = None):
         cart = models.Cart.objects.get(user=request.user)
         if item_id:
             cart_item = get_object_or_404(models.CartItem, cart=cart, id=item_id)
@@ -162,8 +97,78 @@ class OrderViewSet(viewsets.ModelViewSet):
             )
 
         models.CartItem.objects.filter(cart=cart).delete()
+        send_order_notification.delay(order.id)
+
         headers = self.get_success_headers(serializers.OrderSerializer(order).data)
         return Response(serializers.OrderSerializer(order).data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class UserVerificationView(generics.GenericAPIView):
+    """Верификация пользователя."""
+
+    permission_classes = [permissions.IsAdminUser]
+    serializer_class = serializers.UserVerificationSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        username = serializer.data.get("username")
+
+        if user := User.objects.filter(username=username).first():
+            user.is_verified = True
+            user.save()
+            return Response(status=status.HTTP_200_OK)
+        return Response({"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED)
+
+
+class UserInfoView(generics.RetrieveAPIView):
+    """Информация о пользователе."""
+
+    queryset = User.objects.all()
+    serializer_class = serializers.UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+
+class UserViewSet(viewsets.ModelViewSet):
+    """Пользователи."""
+
+    http_method_names = ["get", "put", "patch", "delete"]
+    queryset = User.objects.all()
+    serializer_class = serializers.UserSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+
+class UserRegistrationView(generics.CreateAPIView):
+    """Регистрация пользователя."""
+
+    queryset = User.objects.all()
+    serializer_class = serializers.UserCreateSerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class CategoryViewSet(viewsets.ModelViewSet):
+    """Категории."""
+
+    queryset = models.Category.objects.all()
+    serializer_class = serializers.CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["title"]
+
+
+class ProductViewSet(viewsets.ModelViewSet):
+    """Продукты."""
+
+    queryset = models.Product.objects.select_related("category").all()
+    serializer_class = serializers.ProductSerializer
+    permission_classes = [IsAdminOrReadOnly]
+
+    filter_backends = [DjangoFilterBackend]
+    filterset_fields = ["title"]
 
 
 class ShopInfoView(APIView):
