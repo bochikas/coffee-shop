@@ -1,0 +1,79 @@
+networks:
+  dev:
+    name: coffee_shop_dev_network
+
+services:
+  db:
+    image: postgres:16
+    restart: always
+    container_name: coffee-shop-db
+    env_file: .env.docker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - dev
+
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: always
+    container_name: coffee-shop-backend
+    env_file: .env.docker
+    volumes:
+      - static_volume:/opt/app/static/:rw
+      - media_volume:/opt/app/media/:rw
+    ports:
+      - "${API_PORT}:8000"
+    depends_on:
+      - db
+    networks:
+      - dev
+
+  redis:
+    image: redis:7
+    container_name: coffee-shop-redis
+    restart: always
+    networks:
+      - dev
+
+  celery:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: always
+    container_name: coffee-shop-celery
+    command: celery -A config.celery worker --loglevel=info
+    volumes:
+      - static_volume:/opt/app/static/
+      - media_volume:/opt/app/media/
+    env_file: .env.docker
+    depends_on:
+      - redis
+      - db
+    networks:
+      - dev
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    restart: always
+    container_name: coffee-shop-celery-beat
+    command: celery -A config.celery beat --loglevel=info
+    volumes:
+      - static_volume:/opt/app/static/
+      - media_volume:/opt/app/media/
+    env_file: .env.docker
+    depends_on:
+      - redis
+      - db
+      - celery
+    networks:
+      - dev
+
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
