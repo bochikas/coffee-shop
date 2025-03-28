@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "dj_rest_auth",
     "drf_spectacular",
+    "channels",
     # app
     "users.apps.UsersConfig",
     "shop.apps.ShopConfig",
@@ -70,6 +71,19 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "config.wsgi.application"
+
+REDIS_URL = getenv("REDIS_URL")
+
+# Channels
+ASGI_APPLICATION = "config.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [REDIS_URL],
+        },
+    },
+}
 
 
 # Database
@@ -192,8 +206,8 @@ LOGGING = {
 }
 
 # CELERY
-CELERY_BROKER_URL = getenv("CELERY_BROKER_URL")
-CELERY_RESULT_BACKEND = getenv("CELERY_RESULT_BACKEND")
+CELERY_BROKER_URL = REDIS_URL
+CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_BROKER_CONNECTION_RETRY = True
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ENABLE_UTC = True

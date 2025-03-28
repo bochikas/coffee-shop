@@ -22,7 +22,7 @@ RUN chown -R ${user}:${group} ./
 
 USER ${user}
 
-CMD ["gunicorn", "config.wsgi:application", "--workers", "4", "--bind", "0.0.0.0:8000", "--timeout", "60"]
+CMD ["daphne", "-b", "0.0.0.0", "-p", "8000", "config.asgi:application"]
 
 COPY ./docker/entrypoint.sh .
 

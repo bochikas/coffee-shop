@@ -68,6 +68,8 @@ class OrderViewSet(viewsets.ModelViewSet):
     ordering_fields = ["total_price", "created_at"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return models.Order.objects.none()
         if self.request.user.is_staff:
             return models.Order.objects.all()
         return models.Order.objects.filter(user=self.request.user)
