@@ -78,3 +78,15 @@ class Order(CreatedAtModel):
 
     def __str__(self):
         return f"Order {self.id} - {self.status}"
+
+
+class OrderItem(models.Model):
+    """Позиции заказа."""
+
+    order = models.ForeignKey(Order, related_name="items", on_delete=models.CASCADE, verbose_name="заказ")
+    product = models.ForeignKey("Product", on_delete=models.CASCADE, verbose_name="товар")
+    quantity = models.PositiveIntegerField(verbose_name="количество")
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="цена")
+
+    def __str__(self):
+        return f"Order Item #{self.id}"

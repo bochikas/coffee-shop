@@ -120,3 +120,24 @@ class OrderViewSet(viewsets.ModelViewSet):
     queryset = models.Order.objects.all()
     serializer_class = serializers.OrderSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def create(self, request, *args, **kwargs):
+        cart = models.Cart.objects.filter(user=self.request.user).first()
+        cart_items = models.CartItem.objects.filter(cart=cart)
+        if not cart or not cart_items:
+            return Response({"error": "Cart is empty"}, status=status.HTTP_400_BAD_REQUEST)
+
+        total_price = sum(item.product.price * item.quantity for item in cart_items)
+        order = models.Order.objects.create(user=self.request.user, total_price=total_price)
+
+        for cart_item in cart_items:
+            models.OrderItem.objects.create(
+                order=order,
+                product=cart_item.product,
+                quantity=cart_item.quantity,
+                price=cart_item.product.price,
+            )
+
+        models.CartItem.objects.filter(cart=cart).delete()
+        headers = self.get_success_headers(serializers.OrderSerializer(order).data)
+        return Response(serializers.OrderSerializer(order).data, status=status.HTTP_201_CREATED, headers=headers)

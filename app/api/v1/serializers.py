@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from shop.models import Cart, CartItem, Category, Order, Product
+from shop.models import Cart, CartItem, Category, Order, OrderItem, Product
 
 User = get_user_model()
 
@@ -96,7 +96,7 @@ class AddProductToCartSerializer(serializers.ModelSerializer):
 
 
 class CartItemSerializer(serializers.ModelSerializer):
-    """Сериализатор."""
+    """Сериализатор товара корзины."""
 
     product = ProductSerializer()
 
@@ -115,9 +115,20 @@ class CartSerializer(serializers.ModelSerializer):
         fields = ("id", "user", "items")
 
 
+class OrderItemSerializer(serializers.ModelSerializer):
+    """Сериализатор позиции заказа."""
+
+    class Meta:
+        model = OrderItem
+        fields = ("id", "product", "quantity", "price")
+
+
 class OrderSerializer(serializers.ModelSerializer):
     """Сериализатор заказа."""
 
+    items = OrderItemSerializer(many=True, read_only=True)
+
     class Meta:
         model = Order
-        fields = "__all__"
+        fields = ("id", "user", "total_price", "created_at", "status", "items")
+        read_only_fields = ("created_at", "status")
