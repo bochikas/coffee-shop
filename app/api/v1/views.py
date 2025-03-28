@@ -8,6 +8,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from api.v1 import serializers
+from api.v1.permissions import IsAdminOrReadOnly
 from shop import models
 
 User = get_user_model()
@@ -28,7 +29,7 @@ class UserRegistrationView(generics.CreateAPIView):
 class UserVerificationView(generics.GenericAPIView):
     """Верификация пользователя."""
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAdminUser]
     serializer_class = serializers.UserVerificationSerializer
 
     def post(self, request):
@@ -60,7 +61,7 @@ class UserViewSet(viewsets.ModelViewSet):
     http_method_names = ["get", "put", "patch", "delete"]
     queryset = User.objects.all()
     serializer_class = serializers.UserSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [IsAdminOrReadOnly]
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -68,7 +69,7 @@ class CategoryViewSet(viewsets.ModelViewSet):
 
     queryset = models.Category.objects.all()
     serializer_class = serializers.CategorySerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAdminOrReadOnly]
 
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["title"]
@@ -79,7 +80,7 @@ class ProductViewSet(viewsets.ModelViewSet):
 
     queryset = models.Product.objects.select_related("category").all()
     serializer_class = serializers.ProductSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [IsAdminOrReadOnly]
 
     filter_backends = [DjangoFilterBackend]
     filterset_fields = ["title"]
@@ -125,14 +126,23 @@ class CartView(APIView):
 class OrderViewSet(viewsets.ModelViewSet):
     """Заказы."""
 
-    queryset = models.Order.objects.all()
     serializer_class = serializers.OrderSerializer
-    permission_classes = [permissions.IsAuthenticated]
-
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["user", "total_price", "created_at"]
     search_fields = ["user__username"]
     ordering_fields = ["total_price", "created_at"]
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return models.Order.objects.all()
+        return models.Order.objects.filter(user=self.request.user)
+
+    def get_permissions(self):
+        if self.action in ("create", "retrieve", "list"):
+            self.permission_classes = [permissions.IsAuthenticated]
+        else:
+            self.permission_classes = [permissions.IsAdminUser]
+        return super().get_permissions()
 
     def create(self, request, *args, **kwargs):
         cart = models.Cart.objects.filter(user=self.request.user).first()
@@ -154,3 +164,22 @@ class OrderViewSet(viewsets.ModelViewSet):
         models.CartItem.objects.filter(cart=cart).delete()
         headers = self.get_success_headers(serializers.OrderSerializer(order).data)
         return Response(serializers.OrderSerializer(order).data, status=status.HTTP_201_CREATED, headers=headers)
+
+
+class ShopInfoView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        data = {
+            "title": "Coffee to Go",
+            "location": "111 Street, City",
+            "working_hours": {
+                "Monday-Friday": "7:00 AM - 20:00",
+                "Saturday-Sunday": "9:00 AM - 19:00",
+            },
+            "contact": {
+                "phone": "+99999999999",
+                "email": "mail@example.com",
+            },
+        }
+        return Response(data)

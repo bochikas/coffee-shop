@@ -25,5 +25,6 @@ urlpatterns = [
     path("token/refresh/", views.CheckUserActiveTokenRefreshView.as_view(), name="rest_token_refresh"),
     path("cart/", views.CartView.as_view(), name="cart"),
     path("cart/<uuid:item_id>/", views.CartView.as_view(http_method_names=["delete"]), name="cart-item-delete"),
+    path("info/", views.ShopInfoView.as_view(), name="shop-info"),
     path("", include(router.urls)),
 ]
